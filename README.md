@@ -64,7 +64,8 @@ The model reads the emails, but plain Python checks what it asks to do:
 
 - **File names come from checked values**, so nothing in an email can choose where a file goes.
 - **The document must name the student, and the sender must be that student**, or filing is refused. This stops one student's document going in another's folder.
-- **Dates and universities must appear in that email.** Anything else is left out, and insurance dates can't be used as stay dates.
+- **The document must say what it is.** A file is only saved as, say, a Certificate of Arrival if its text says so, which also means documents in other languages go to staff.
+- **Dates and universities must appear in that email.** Anything else is left blank, the agent gets one chance to correct a misread value, and whatever stays blank is marked in the report. Insurance dates can't be used as stay dates.
 - **The results table comes from what the tools really did**, not from the model's summary, so an email that wasn't handled shows as NOT HANDLED.
 - **Existing spreadsheet values are never overwritten.** A difference goes to staff instead.
 - **Emails are treated as data.** The agent is told not to obey them, and email text can't run as an Excel formula.

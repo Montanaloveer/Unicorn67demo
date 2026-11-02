@@ -36,6 +36,14 @@ DOC_TYPES = ("LearningAgreement", "Transcript", "Insurance", "CertificateOfArriv
 ALLOWED_SUFFIXES = (".pdf", ".jpg", ".jpeg", ".png")
 MIME_TYPES = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 MAX_TEXT = 4000
+INSURANCE_DATES_NOTE = "stay dates, because insurance dates are not stay dates"
+# The model can call a gym receipt a certificate, so the document itself has to say what it is.
+DOC_TYPE_WORDS = {
+    "LearningAgreement": ("learningagreement",),
+    "Transcript": ("transcript",),
+    "Insurance": ("insurance", "insured"),
+    "CertificateOfArrival": ("certificateofarrival",),
+}
 
 STUDENT_COLUMNS = (
     "Surname", "Name", "Email", "Academic year", "Semester", "Host university", "Start date",
@@ -56,7 +64,13 @@ def _tracked(func):
     def inner(*args, **kwargs):
         result = func(*args, **kwargs)
         with _lock:
-            _outcomes[kwargs.get("email_id", args[0] if args else "")] = result
+            key = kwargs.get("email_id", args[0] if args else "")
+            previous = _outcomes.get(key, {})
+            # A corrected retry finds its file already saved. The report should still say what happened first.
+            if result.get("status") == "already_filed" and previous.get("saved_as") == result.get("saved_as"):
+                _outcomes[key] = {**result, "status": previous["status"]}
+            else:
+                _outcomes[key] = result
         return result
 
     return inner
@@ -116,6 +130,11 @@ def _document_text(email_id, filename, data):
     """What the attachment itself says, from its text layer or from read_scan."""
     text = _pdf_text(data) if filename.lower().endswith(".pdf") else ""
     return _compact(text + " " + _scan_text.get((email_id, filename), ""))
+
+
+def _left_blank(outcome):
+    """Values file_document dropped that a person may need to fill in. Insurance dates are dropped by design."""
+    return [item for item in outcome.get("left_out_not_in_email") or [] if item != INSURANCE_DATES_NOTE]
 
 
 def _date_is_stated(day, text):
@@ -349,6 +368,12 @@ def file_document(
             "message": f"The document does not name {name} {surname}. Use flag_for_staff, "
                        "unless you can correct the name from the document.",
         }
+    if not any(word in document for word in DOC_TYPE_WORDS[doc_type]):
+        return {
+            "status": "refused",
+            "message": f"The document does not say it is a {doc_type}. Use flag_for_staff, "
+                       "unless you can correct the doc_type from the document.",
+        }
     if _compact(surname) not in _compact(str(message.get("From", ""))):
         return {
             "status": "refused",
@@ -360,7 +385,7 @@ def file_document(
     email_text = _compact(f"{message.get('Subject', '')} {_body(message)}") + document
     left_out = []
     if doc_type == "Insurance" and (start or end):
-        left_out.append("stay dates, because insurance dates are not stay dates")
+        left_out.append(INSURANCE_DATES_NOTE)
         start_date = end_date = ""
     if start_date and not _date_is_stated(start, email_text):
         left_out.append(f"start_date {start_date}")
@@ -414,12 +439,19 @@ def file_document(
 
     if conflicts:
         status = "filed_with_conflict"
-    return {
+    result = {
         "status": status,
         "saved_as": target.relative_to(HOME).as_posix(),
         "conflicts_for_staff": conflicts,
         "left_out_not_in_email": left_out,
     }
+    if _left_blank(result):
+        result["message"] = (
+            f"Left blank because this email and its document do not state them: {', '.join(_left_blank(result))}. "
+            "Compare them with the document. If you misread a value, call file_document once more with the value "
+            "as the document states it. If the document does not state it, leave it out."
+        )
+    return result
 
 
 @_tracked
@@ -503,6 +535,8 @@ def get_report() -> dict:
         detail = outcome.get("saved_as") or outcome.get("reason") or outcome.get("message") or ""
         for conflict in outcome.get("conflicts_for_staff") or []:
             detail += f" (staff to check: {conflict})"
+        for value in _left_blank(outcome):
+            detail += f" (staff to check: left blank, not found in the document: {value})"
         if status in ("NOT HANDLED", "refused", "error"):
             needs_action.append({"email_id": path.name, "status": status, "message": outcome.get("message", "")})
         sender = parseaddr(str(message.get("From", "")))

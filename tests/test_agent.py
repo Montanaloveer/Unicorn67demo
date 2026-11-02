@@ -91,8 +91,16 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(tools.file_document(**scan)["status"], "refused")
         tools._scan_text[("email_07.eml", "scanned_doc.pdf")] = "UNREADABLE"
         self.assertEqual(tools.file_document(**scan)["status"], "refused")
-        tools._scan_text[("email_07.eml", "scanned_doc.pdf")] = "Student: Sofia Garcia"
+        tools._scan_text[("email_07.eml", "scanned_doc.pdf")] = "Learning Agreement. Student: Sofia Garcia"
         self.assertEqual(tools.file_document(**scan)["status"], "filed")
+
+    def test_document_must_say_what_type_it_is(self):
+        result = tools.file_document(
+            email_id="email_12.eml", attachment_name="receipt.pdf", surname="Vītols", name="Edgars",
+            doc_type="CertificateOfArrival", academic_year="2026-27")
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("flag_for_staff", result["message"])
+        self.assertFalse(tools.FILED.exists())
 
     def test_another_students_document_is_refused(self):
         document = dict(email_id="email_09.eml", attachment_name="LA.pdf", doc_type="LearningAgreement",
@@ -123,6 +131,29 @@ class ToolTests(unittest.TestCase):
         row = dict(zip(tools.STUDENT_COLUMNS, rows()[0]))
         self.assertIsNone(row["Start date"])
         self.assertEqual(row["Host university"], "RTU")
+        self.assertNotIn("message", result)
+
+    def test_misread_date_is_reported_and_can_be_corrected(self):
+        tools.list_inbox()
+        tools._scan_text[("email_07.eml", "scanned_doc.pdf")] = (
+            "Learning Agreement. Student: Sofia Garcia, 8 February 2027 to 2 July 2027")
+        scan = dict(email_id="email_07.eml", attachment_name="scanned_doc.pdf", surname="Garcia", name="Sofia",
+                    doc_type="LearningAgreement", academic_year="2026-27", end_date="2027-07-02")
+
+        def sofia_line():
+            return next(line for line in tools.get_report()["table"].splitlines() if "email_07.eml" in line)
+
+        result = tools.file_document(start_date="2027-02-07", **scan)
+        self.assertEqual(result["status"], "filed")
+        self.assertIn("start_date 2027-02-07", result["message"])
+        self.assertIsNone(dict(zip(tools.STUDENT_COLUMNS, rows()[0]))["Start date"])
+        self.assertIn("left blank, not found in the document: start_date 2027-02-07", sofia_line())
+
+        tools.file_document(start_date="2027-02-08", **scan)
+        self.assertEqual(len(rows()), 1)
+        self.assertEqual(dict(zip(tools.STUDENT_COLUMNS, rows()[0]))["Start date"], "2027-02-08")
+        self.assertIn("| filed |", sofia_line())
+        self.assertNotIn("left blank", sofia_line())
 
     def test_dates_are_recognised_in_common_forms(self):
         for day, text in (

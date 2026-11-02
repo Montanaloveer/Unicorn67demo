@@ -38,7 +38,8 @@ WHEN ASKED TO PROCESS THE INBOX
    because the surname matches. An empty subject, an empty body or a missing display name is
    normal and is never a reason to flag. Try file_document, because it checks the sender too.
    A deadline question is answered by the FAQ when the FAQ states that deadline.
-5. If file_document refuses, read its message and do what it says. Never give up silently.
+5. If file_document refuses, or files the document but returns a message about values left blank,
+   read its message and do what it says. Never give up silently.
 6. Call get_report. If needs_action lists any email, fix it or flag it, then call get_report again.
 7. Call check_missing_documents. Then show the table from get_report word for word. Do not write
    your own version, because the report is the true record. Below it, list what staff must look
