@@ -1,0 +1,17 @@
+# Secrets: never commit these
+.env
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# ADK local data
+.adk/
+
+# Created by the agent when it runs
+filed/
+drafts/
+students.xlsx
+*.tmp.xlsx
