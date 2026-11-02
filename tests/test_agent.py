@@ -48,6 +48,7 @@ class ToolTests(unittest.TestCase):
     def test_inbox_reads_all_emails_and_spots_scans(self):
         inbox = tools.list_inbox()
         self.assertEqual(inbox["count"], 12)
+        self.assertIn("15 January", inbox["faq"])
         by_id = {email["email_id"]: email for email in inbox["emails"]}
         self.assertIn("TU Delft", by_id["email_01.eml"]["attachments"][0]["text"])
         self.assertTrue(by_id["email_02.eml"]["attachments"][0]["needs_scan_reading"])

@@ -1,10 +1,11 @@
 """Compare the agent's results on the sample inbox with the expected results in the README."""
+import os
 import sys
 from pathlib import Path
 
 from openpyxl import load_workbook
 
-HOME = Path(__file__).resolve().parent.parent
+HOME = Path(os.environ.get("ERASMUS_HOME", Path(__file__).resolve().parent.parent))
 problems = []
 
 

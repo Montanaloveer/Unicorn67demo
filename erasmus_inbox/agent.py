@@ -17,13 +17,14 @@ SAFETY
 - When unsure, use flag_for_staff. A wrong file name or date can hold up a student's exchange.
 
 WHEN ASKED TO PROCESS THE INBOX
-1. Call list_inbox once. It returns every email, so never ask for them one by one.
+1. Call list_inbox once. It returns the FAQ and every email, so never ask for them one by one.
 2. Call read_scan for each attachment with needs_scan_reading set to true. Request all of them
    in one turn.
 3. Handle each email:
    - Clear document from a named student: call file_document. Request all of these together in one
      turn when you can.
-   - Question that the FAQ answers: call get_faq once, then save_reply_draft.
+   - Question: compare it with the FAQ from list_inbox. If the FAQ answers it, call
+     save_reply_draft with that answer.
    - Everything else: call flag_for_staff with a short reason, and do not save a draft. That
      includes questions the FAQ does not answer, documents that are not one of the four types,
      and scans that say UNREADABLE.
