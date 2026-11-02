@@ -15,3 +15,6 @@ filed/
 drafts/
 students.xlsx
 *.tmp.xlsx
+
+# Excel's temporary lock file
+~$*
